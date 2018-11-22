@@ -2,7 +2,7 @@
 
 #define GAMETILE "RailDefender 3: Asteroids"
 
-const Time dt = milliseconds(16);
+const Time dt = milliseconds(16); // approx 60 fps
 
 int main()
 {
@@ -20,9 +20,15 @@ int main()
 				window.close();
 		}
 		if (clock.getElapsedTime() > dt) {
-			if (game->hasNext()) game.reset(game->getNext());
-			game->update();
+			switch (game->update())
+			{
+			case MENU: game.reset(new Menu()); break;
+			case GAME: game.reset(new Asteroids()); break;
+			case EXIT: return 0;
+			default: break;
+			}
 			game->draw(window);
+			clock.restart();
 		}
 	}
 	return 0;

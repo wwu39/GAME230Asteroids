@@ -3,16 +3,15 @@
 #include <vector>
 #include "Object.h"
 
+enum GameStatus { NO_CHANGE, MENU, GAME, EXIT };
+
 class GameState
 {
 protected:
-	shared_ptr<GameState> next = { nullptr };
 public:
 	GameState();
 	~GameState();
-	inline bool hasNext() { return next != nullptr; }
-	inline GameState * getNext() { return next.get(); }
-	virtual void update() = 0;
+	virtual GameStatus update() = 0;
 	virtual void draw(RenderWindow&) = 0;
 };
 
@@ -20,18 +19,22 @@ class Menu : public GameState
 {
 	Sound bgm;
 	RectangleShape bg;
+	Text options;
+	CircleShape cursor;
+	Sound option;
+	Sound title;
 public:
 	Menu();
-	void update();
+	GameStatus update();
 	void draw(RenderWindow&);
 };
 
 class Asteroids : public GameState
 {
 	vector<shared_ptr<Object>> object_list;
-	vector<shared_ptr<Effect>> Effect_list;
+	vector<shared_ptr<Effect>> effect_list;
 public:
 	Asteroids();
-	void update();
+	GameStatus update();
 	void draw(RenderWindow&);
 };
