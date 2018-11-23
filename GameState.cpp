@@ -38,7 +38,7 @@ GameStatus Menu::update()
 		cursor.setPosition({ 450.0f, 425 });
 		option.play();
 	}
-	if (pos.x == 450.0f && (Keyboard::isKeyPressed(Keyboard::Left) || Keyboard::isKeyPressed(Keyboard::A))) {
+	else if (pos.x == 450.0f && (Keyboard::isKeyPressed(Keyboard::Left) || Keyboard::isKeyPressed(Keyboard::A))) {
 		cursor.setPosition({ 90.0f, 425 });
 		option.play();
 	}
@@ -63,14 +63,26 @@ void Menu::draw(RenderWindow& w)
 
 Asteroids::Asteroids()
 {
-	
+	Effect::list.clear();
+	Object::list.clear();
+	Object::list.push_back(shared_ptr<Object> (new Plane()));
+}
+
+Asteroids::~Asteroids()
+{
+	Effect::list.clear();
+	Object::list.clear();
 }
 
 GameStatus Asteroids::update()
 {
-	for (auto i = object_list.size() - 1; i != -1; --i) {
-		if (object_list[i]->isDead()) object_list.erase(object_list.begin() + i);
-		else object_list[i]->update();
+	for (auto i = Object::list.size() - 1; i != -1; --i) { // update all objects
+		if (Object::list[i]->isDead()) Object::list.erase(Object::list.begin() + i);
+		else Object::list[i]->update(Object::list);
+	}
+	for (auto i = Effect::list.size() - 1; i != -1; --i) { // play all effects
+		if (Effect::list[i]->isDead()) Effect::list.erase(Effect::list.begin() + i);
+		else Effect::list[i]->play();
 	}
 	return NO_CHANGE;
 }
@@ -78,10 +90,7 @@ GameStatus Asteroids::update()
 void Asteroids::draw(RenderWindow& w)
 {
 	w.clear(Color(0, 0, 255));
-	for (auto i = effect_list.size() - 1; i != -1; --i) {
-		if (effect_list[i]->isDead()) effect_list.erase(effect_list.begin() + i);
-		else effect_list[i]->play(w);
-	}
-	for (auto& i : object_list) i->draw(w);
+	for (auto& i : Object::list) i->draw(w);
+	for (auto& i : Effect::list) i->draw(w);
 	w.display();
 }

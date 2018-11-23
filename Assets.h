@@ -24,6 +24,10 @@ public:
 	static Sound button_press;
 	static Texture explosion[34];
 	static SoundBuffer explosion_sound;
+	static Texture plane[2][2];
+	static Texture muzzle[4];
+	static Texture bullet;
+	static SoundBuffer gunfire;
 
 	// load all files needed
 	static void load();
@@ -42,8 +46,10 @@ protected:
 	int times_played { 0 };
 public:
 	inline bool isDead() { return dead; }
-	virtual void play(RenderWindow&) = 0;
+	virtual void play() = 0;
 	virtual void setPosition(Vector2f) = 0;
+	virtual void draw(RenderWindow&) = 0;
+	static vector<shared_ptr<Effect>> list;
 };
 
 class Animation : public Effect
@@ -54,8 +60,9 @@ class Animation : public Effect
 	int length;
 	Sound sound;
 public:
-	Animation(Texture * texture, int length, Vector2f size, Vector2f pos = {0, 0}, SoundBuffer * sb = nullptr, int loop_count = 1, int rate = 5);
-	void play(RenderWindow&);
+	Animation(Texture* , int, Vector2f, Vector2f = {0, 0}, SoundBuffer* = nullptr, int = 1, int = 5);
+	void play();
+	void draw(RenderWindow&);
 	inline void setPosition(Vector2f pos) { sprite.setPosition(pos); }
 };
 
@@ -65,7 +72,8 @@ class FlashingText : public Effect
 	bool flashing = true;
 public:
 	FlashingText(string text, Vector2f pos, int char_size = 50, int loop_count = 3, int rate = 15);
-	void play(RenderWindow&);
+	void play();
+	void draw(RenderWindow&);
 	inline void setPosition(Vector2f pos) { text.setPosition(pos); }
 };
 

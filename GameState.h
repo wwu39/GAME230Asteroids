@@ -31,10 +31,10 @@ public:
 
 class Asteroids : public GameState
 {
-	vector<shared_ptr<Object>> object_list;
-	vector<shared_ptr<Effect>> effect_list;
+	RectangleShape bg;
 public:
 	Asteroids();
+	~Asteroids();
 	GameStatus update();
 	void draw(RenderWindow&);
 };
