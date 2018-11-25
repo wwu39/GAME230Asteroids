@@ -65,6 +65,10 @@ Asteroids::Asteroids()
 {
 	Effect::list.clear();
 	Object::list.clear();
+	bg.setSize({ 2400, 1800 });
+	bg.setOrigin({ 1200, 900 });
+	bg.setTexture(&Assets::sky);
+	bg.setPosition({ 400, 300 });
 	Object::list.push_back(shared_ptr<Object> (new Plane()));
 }
 
@@ -78,18 +82,24 @@ GameStatus Asteroids::update()
 {
 	for (auto i = Object::list.size() - 1; i != -1; --i) { // update all objects
 		if (Object::list[i]->isDead()) Object::list.erase(Object::list.begin() + i);
-		else Object::list[i]->update(Object::list);
+		else Object::list[i]->update();
 	}
 	for (auto i = Effect::list.size() - 1; i != -1; --i) { // play all effects
 		if (Effect::list[i]->isDead()) Effect::list.erase(Effect::list.begin() + i);
 		else Effect::list[i]->play();
+	}
+	if (Keyboard::isKeyPressed(Keyboard::Escape)) {
+		Assets::button_press.play();
+		return MENU;
 	}
 	return NO_CHANGE;
 }
 
 void Asteroids::draw(RenderWindow& w)
 {
+	w.setView(Plane::view);
 	w.clear(Color(0, 0, 255));
+	w.draw(bg);
 	for (auto& i : Object::list) i->draw(w);
 	for (auto& i : Effect::list) i->draw(w);
 	w.display();

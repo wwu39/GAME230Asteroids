@@ -22,7 +22,9 @@ int main()
 		if (clock.getElapsedTime() > dt) {
 			switch (game->update())
 			{
-			case MENU: game.reset(new Menu()); break;
+			case MENU: 
+				window.setView(window.getDefaultView());
+				game.reset(new Menu()); break;
 			case GAME: game.reset(new Asteroids()); break;
 			case EXIT: return 0;
 			default: break;

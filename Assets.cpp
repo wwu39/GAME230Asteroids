@@ -17,6 +17,12 @@ Texture Assets::plane[2][2];
 Texture Assets::muzzle[4];
 Texture Assets::bullet;
 SoundBuffer Assets::gunfire;
+Texture Assets::sky;
+SoundBuffer Assets::plane_move;
+SoundBuffer Assets::jet_move;
+Texture Assets::rail;
+Texture Assets::nod[4];
+Texture Assets::piff[4];
 
 void Assets::load()
 {
@@ -49,7 +55,22 @@ void Assets::load()
 	}
 	bullet.loadFromFile("sprites/bullet.png");
 	gunfire.loadFromFile("sound/gunfire.wav");
+	sky.loadFromFile("sprites/sky.png");
+	plane_move.loadFromFile("sound/plane_move.wav");
+	jet_move.loadFromFile("sound/jet_move.wav");
+	rail.loadFromFile("sprites/rail.png");
+	for (int i = 0; i < 4; ++i) {
+		ostringstream filename;
+		filename << "sprites/nod 000" << i << ".png";
+		nod[i].loadFromFile(filename.str());
+	}
+	for (int i = 0; i < 4; ++i) {
+		ostringstream filename;
+		filename << "sprites/piff 000" << i << ".png";
+		piff[i].loadFromFile(filename.str());
+	}
 }
+
 
 Assets::Assets()
 {

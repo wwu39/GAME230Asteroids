@@ -28,6 +28,12 @@ public:
 	static Texture muzzle[4];
 	static Texture bullet;
 	static SoundBuffer gunfire;
+	static Texture sky;
+	static SoundBuffer plane_move;
+	static SoundBuffer jet_move;
+	static Texture rail;
+	static Texture nod[4];
+	static Texture piff[4];
 
 	// load all files needed
 	static void load();
@@ -64,6 +70,7 @@ public:
 	void play();
 	void draw(RenderWindow&);
 	inline void setPosition(Vector2f pos) { sprite.setPosition(pos); }
+	inline void setRotation(float degree) { sprite.setRotation(degree); }
 };
 
 class FlashingText : public Effect
