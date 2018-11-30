@@ -1,5 +1,5 @@
 #include "GameState.h"
-
+#include <sstream>
 
 
 GameState::GameState()
@@ -61,29 +61,48 @@ void Menu::draw(RenderWindow& w)
 	w.display();
 }
 
-Asteroids::Asteroids()
+Asteroids::Asteroids(int Level)
 {
+	// debug
+	debug.setCharacterSize(50);
+	debug.setFont(Assets::arcade);
+	debug.setFillColor(Color::Red);
+	debug.setLineSpacing(0.75);
+	//debug
+
 	Effect::list.clear();
-	Object::list.clear();
+	Object::clear();
 	bg.setSize({ 2400, 1800 });
 	bg.setOrigin({ 1200, 900 });
 	bg.setTexture(&Assets::sky);
 	bg.setPosition({ 400, 300 });
-	Object::list.push_back(shared_ptr<Object> (new Plane()));
+	socre_text.setCharacterSize(50);
+	socre_text.setFont(Assets::arcade);
+	socre_text.setFillColor(Color::Green);
+	socre_text.setLineSpacing(0.75);
+	landing_sound.setBuffer(Assets::landing);
+	Plane::view.setCenter({ 400, 300 });
+	Object::player_is_dead = false;
+	redeploy.reset(new FlashingText("Deploying", Plane::view.getCenter() + Vector2f(-200, -80), 100));
+	Object::score = 0;
+
+	Object::add(new Asteroid(LARGE, { -400, -300 }, { cosf((rand() % 360) / 360.f * 2 * PI), sinf((rand() % 360) / 360.f * 2 * PI) }), ASTR_LAYER);
+	Object::add(new Asteroid(LARGE, { -400, 300 }, { cosf((rand() % 360) / 360.f * 2 * PI), sinf((rand() % 360) / 360.f * 2 * PI) }), ASTR_LAYER);
+	Object::add(new Asteroid(LARGE, { -400, 900 }, { cosf((rand() % 360) / 360.f * 2 * PI), sinf((rand() % 360) / 360.f * 2 * PI) }), ASTR_LAYER);
+	Object::add(new Asteroid(LARGE, { 400, -300 }, { cosf((rand() % 360) / 360.f * 2 * PI), sinf((rand() % 360) / 360.f * 2 * PI) }), ASTR_LAYER);
+	Object::add(new Asteroid(LARGE, { 400, 900 }, { cosf((rand() % 360) / 360.f * 2 * PI), sinf((rand() % 360) / 360.f * 2 * PI) }), ASTR_LAYER);
+	Object::add(new Asteroid(LARGE, { 1200, -300 }, { cosf((rand() % 360) / 360.f * 2 * PI), sinf((rand() % 360) / 360.f * 2 * PI) }), ASTR_LAYER);
+	Object::add(new Asteroid(LARGE, { 1200, 300 }, { cosf((rand() % 360) / 360.f * 2 * PI), sinf((rand() % 360) / 360.f * 2 * PI) }), ASTR_LAYER);
+	Object::add(new Asteroid(LARGE, { 1200, 900 }, { cosf((rand() % 360) / 360.f * 2 * PI), sinf((rand() % 360) / 360.f * 2 * PI) }), ASTR_LAYER);
 }
 
 Asteroids::~Asteroids()
 {
-	Effect::list.clear();
-	Object::list.clear();
 }
 
 GameStatus Asteroids::update()
 {
-	for (auto i = Object::list.size() - 1; i != -1; --i) { // update all objects
-		if (Object::list[i]->isDead()) Object::list.erase(Object::list.begin() + i);
-		else Object::list[i]->update();
-	}
+	Object::list_update();
 	for (auto i = Effect::list.size() - 1; i != -1; --i) { // play all effects
 		if (Effect::list[i]->isDead()) Effect::list.erase(Effect::list.begin() + i);
 		else Effect::list[i]->play();
@@ -92,6 +111,46 @@ GameStatus Asteroids::update()
 		Assets::button_press.play();
 		return MENU;
 	}
+	if (Object::score == 2800) return NEXT_LEVEL;
+
+	if (Object::player_is_dead) {
+		redeploy.reset(new FlashingText("Re-Deploying", Plane::view.getCenter() + Vector2f(-260, -80), 100));
+		Object::player_is_dead = false;
+	}
+	if (redeploy != nullptr)
+		if (redeploy->isDead()) {
+			redeploy.reset();
+			landing.reset(new Animation(&Assets::plane_landing[0], 20, { 640, 480 }, Plane::view.getCenter()));
+			landing_sound.play();
+		} else redeploy->play();
+	if (landing != nullptr)
+		if (landing->isDead()) {
+			landing.reset();
+			Object::add(new Plane(Plane::view.getCenter()), PLANE_LAYER);
+		} else landing->play();
+
+	// debug
+	ostringstream str;
+	str << "RBucket Count: ";
+	for (int i = 0; i < LAYERS; ++i) str << Object::render_buckets[i].size() << " ";
+	str << endl;
+	str << "PBucket Count: ";
+	for (int i = 0; i < 9; ++i) str << Object::pos_buckets[i].size() << " ";
+	debug.setString(str.str());
+	Vector2f debug_pos = Plane::view.getCenter();
+	debug_pos.x -= 385.f;
+	debug_pos.y -= 285.f;
+	debug.setPosition(debug_pos);
+	// debug
+
+	Vector2f score_pos = Plane::view.getCenter();
+	score_pos.x -= 400.f;
+	score_pos.y += 260.f;
+	ostringstream score_text_content;
+	score_text_content << "Score:" << Object::score;
+	socre_text.setString(score_text_content.str());
+	socre_text.setPosition(score_pos);
+
 	return NO_CHANGE;
 }
 
@@ -100,7 +159,14 @@ void Asteroids::draw(RenderWindow& w)
 	w.setView(Plane::view);
 	w.clear(Color(0, 0, 255));
 	w.draw(bg);
-	for (auto& i : Object::list) i->draw(w);
+	Object::draw_all(w);
 	for (auto& i : Effect::list) i->draw(w);
+	if (landing != nullptr) landing->draw(w);
+	if (redeploy != nullptr) redeploy->draw(w);
+	w.draw(socre_text);
+
+	// debug
+	w.draw(debug);
+
 	w.display();
 }

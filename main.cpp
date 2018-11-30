@@ -20,12 +20,14 @@ int main()
 				window.close();
 		}
 		if (clock.getElapsedTime() > dt) {
+			int level = 1;
 			switch (game->update())
 			{
 			case MENU: 
 				window.setView(window.getDefaultView());
 				game.reset(new Menu()); break;
-			case GAME: game.reset(new Asteroids()); break;
+			case GAME: game.reset(new Asteroids(level)); break;
+			case NEXT_LEVEL: game.reset(new Asteroids(level++)); break;
 			case EXIT: return 0;
 			default: break;
 			}

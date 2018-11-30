@@ -34,6 +34,12 @@ public:
 	static Texture rail;
 	static Texture nod[4];
 	static Texture piff[4];
+	static Texture plane_landing[20];
+	static SoundBuffer landing;
+#define SMALL 0
+#define MEDIUM 1
+#define LARGE 2
+	static Texture astr_tex[3][10];
 
 	// load all files needed
 	static void load();
@@ -54,6 +60,7 @@ public:
 	inline bool isDead() { return dead; }
 	virtual void play() = 0;
 	virtual void setPosition(Vector2f) = 0;
+	virtual Vector2f getPosition() = 0;
 	virtual void draw(RenderWindow&) = 0;
 	static vector<shared_ptr<Effect>> list;
 };
@@ -66,10 +73,11 @@ class Animation : public Effect
 	int length;
 	Sound sound;
 public:
-	Animation(Texture* , int, Vector2f, Vector2f = {0, 0}, SoundBuffer* = nullptr, int = 1, int = 5);
+	Animation(Texture* , int length, Vector2f size, Vector2f pos = {0, 0}, SoundBuffer* = nullptr, int = 1, int = 5);
 	void play();
 	void draw(RenderWindow&);
 	inline void setPosition(Vector2f pos) { sprite.setPosition(pos); }
+	inline Vector2f getPosition() { return sprite.getPosition(); }
 	inline void setRotation(float degree) { sprite.setRotation(degree); }
 };
 
@@ -82,5 +90,6 @@ public:
 	void play();
 	void draw(RenderWindow&);
 	inline void setPosition(Vector2f pos) { text.setPosition(pos); }
+	inline Vector2f getPosition() { return text.getPosition(); }
 };
 

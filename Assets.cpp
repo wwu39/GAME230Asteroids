@@ -23,6 +23,9 @@ SoundBuffer Assets::jet_move;
 Texture Assets::rail;
 Texture Assets::nod[4];
 Texture Assets::piff[4];
+Texture Assets::astr_tex[3][10];
+Texture Assets::plane_landing[20];
+SoundBuffer Assets::landing;
 
 void Assets::load()
 {
@@ -69,6 +72,27 @@ void Assets::load()
 		filename << "sprites/piff 000" << i << ".png";
 		piff[i].loadFromFile(filename.str());
 	}
+	for (int i = 0; i < 10; ++i) {
+		ostringstream filename;
+		filename << "sprites/astr_s 000" << i << ".png";
+		astr_tex[SMALL][i].loadFromFile(filename.str());
+	}
+	for (int i = 0; i < 10; ++i) {
+		ostringstream filename;
+		filename << "sprites/astr_m 000" << i << ".png";
+		astr_tex[MEDIUM][i].loadFromFile(filename.str());
+	}
+	for (int i = 0; i < 10; ++i) {
+		ostringstream filename;
+		filename << "sprites/astr_l 000" << i << ".png";
+		astr_tex[LARGE][i].loadFromFile(filename.str());
+	}
+	for (int i = 0; i < 20; ++i) {
+		ostringstream filename;
+		filename << "sprites/landing 00" << (i > 9 ? "" : "0") << i << ".png";
+		plane_landing[i].loadFromFile(filename.str());
+	}
+	landing.loadFromFile("sound/landing.wav");
 }
 
 

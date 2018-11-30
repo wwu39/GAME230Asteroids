@@ -3,7 +3,7 @@
 #include <vector>
 #include "Object.h"
 
-enum GameStatus { NO_CHANGE, MENU, GAME, EXIT };
+enum GameStatus { NO_CHANGE, MENU, GAME, NEXT_LEVEL, EXIT };
 
 class GameState
 {
@@ -32,8 +32,13 @@ public:
 class Asteroids : public GameState
 {
 	RectangleShape bg;
+	Sound landing_sound;
+	Text socre_text;
+	Text debug;
+	shared_ptr<Effect> redeploy{ nullptr };
+	shared_ptr<Effect> landing{ nullptr };
 public:
-	Asteroids();
+	Asteroids(int Level);
 	~Asteroids();
 	GameStatus update();
 	void draw(RenderWindow&);
