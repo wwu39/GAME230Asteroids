@@ -11,6 +11,7 @@ int main()
 	shared_ptr<GameState> game(new Menu());
 	Clock clock;
 	clock.restart();
+	int level = 1;
 	while (window.isOpen())
 	{
 		Event event;
@@ -20,14 +21,20 @@ int main()
 				window.close();
 		}
 		if (clock.getElapsedTime() > dt) {
-			int level = 1;
 			switch (game->update())
 			{
 			case MENU: 
+				level = 1;
 				window.setView(window.getDefaultView());
-				game.reset(new Menu()); break;
-			case GAME: game.reset(new Asteroids(level)); break;
-			case NEXT_LEVEL: game.reset(new Asteroids(level++)); break;
+				game.reset(new Menu()); 
+				break;
+			case GAME: 
+				game.reset(new Asteroids(level));
+				break;
+			case NEXT_LEVEL: 
+				++level;
+				game.reset(new Asteroids(level));
+				break;
 			case EXIT: return 0;
 			default: break;
 			}

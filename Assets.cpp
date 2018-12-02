@@ -23,9 +23,17 @@ SoundBuffer Assets::jet_move;
 Texture Assets::rail;
 Texture Assets::nod[4];
 Texture Assets::piff[4];
-Texture Assets::astr_tex[3][10];
+Texture Assets::astr_tex[3][12];
 Texture Assets::plane_landing[20];
 SoundBuffer Assets::landing;
+Texture Assets::shield[5];
+Texture Assets::missile;
+Texture Assets::trailer[20];
+Texture Assets::misl_exp[13];
+SoundBuffer Assets::misl_exp_sound;
+SoundBuffer Assets::misl_launch;
+Texture Assets::arrow_red;
+Texture Assets::arrow_yellow;
 
 void Assets::load()
 {
@@ -72,27 +80,43 @@ void Assets::load()
 		filename << "sprites/piff 000" << i << ".png";
 		piff[i].loadFromFile(filename.str());
 	}
-	for (int i = 0; i < 10; ++i) {
+	for (int i = 0; i < 6; ++i) {
 		ostringstream filename;
 		filename << "sprites/astr_s 000" << i << ".png";
 		astr_tex[SMALL][i].loadFromFile(filename.str());
 	}
-	for (int i = 0; i < 10; ++i) {
+	for (int i = 0; i < 12; ++i) {
 		ostringstream filename;
-		filename << "sprites/astr_m 000" << i << ".png";
+		filename << "sprites/astr_m 00" << (i > 9 ? "" : "0") << i << ".png";
 		astr_tex[MEDIUM][i].loadFromFile(filename.str());
 	}
-	for (int i = 0; i < 10; ++i) {
-		ostringstream filename;
-		filename << "sprites/astr_l 000" << i << ".png";
-		astr_tex[LARGE][i].loadFromFile(filename.str());
-	}
+	astr_tex[LARGE][0].loadFromFile("sprites/astr_l 0000.png");
 	for (int i = 0; i < 20; ++i) {
 		ostringstream filename;
 		filename << "sprites/landing 00" << (i > 9 ? "" : "0") << i << ".png";
 		plane_landing[i].loadFromFile(filename.str());
 	}
 	landing.loadFromFile("sound/landing.wav");
+	for (int i = 0; i < 5; ++i) {
+		ostringstream filename;
+		filename << "sprites/shield_white 000" << i << ".png";
+		shield[i].loadFromFile(filename.str());
+	}
+	missile.loadFromFile("sprites/misl.png");
+	for (int i = 0; i < 20; ++i) {
+		ostringstream filename;
+		filename << "sprites/trailer 00" << (i > 9 ? "" : "0") << i << ".png";
+		trailer[i].loadFromFile(filename.str());
+	}
+	for (int i = 0; i < 13; ++i) {
+		ostringstream filename;
+		filename << "sprites/misl_exp 00" << (i > 9 ? "" : "0") << i << ".png";
+		misl_exp[i].loadFromFile(filename.str());
+	}
+	misl_exp_sound.loadFromFile("sound/misl_exp.wav");
+	misl_launch.loadFromFile("sound/misl_launch.wav");
+	arrow_red.loadFromFile("sprites/arrow.png");
+	arrow_yellow.loadFromFile("sprites/arrow2.png");
 }
 
 

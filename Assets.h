@@ -36,10 +36,18 @@ public:
 	static Texture piff[4];
 	static Texture plane_landing[20];
 	static SoundBuffer landing;
+	static Texture shield[5];
+	static Texture missile;
+	static Texture trailer[20];
+	static Texture misl_exp[13];
+	static SoundBuffer misl_exp_sound;
+	static SoundBuffer misl_launch;
+	static Texture arrow_red;
+	static Texture arrow_yellow;
 #define SMALL 0
 #define MEDIUM 1
 #define LARGE 2
-	static Texture astr_tex[3][10];
+	static Texture astr_tex[3][12];
 
 	// load all files needed
 	static void load();

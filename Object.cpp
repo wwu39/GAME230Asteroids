@@ -2,11 +2,14 @@
 #include "Object.h"
 
 int Object::score;
+int Object::asteroid_count;
 bool Object::player_is_dead = false;
 vector<shared_ptr<Object>> Object::list;
 vector<shared_ptr<Object>> Object::render_buckets[LAYERS];
 vector<shared_ptr<Object>> Object::pos_buckets[9];
 View Plane::view { FloatRect(0, 0, 800, 600) };
+int Plane::life = 3;
+float Asteroid::speed_mult = 1.f;
 
 float Object::length(Vector2f a, Vector2f b)
 {
@@ -16,6 +19,13 @@ float Object::length(Vector2f a, Vector2f b)
 bool Object::is_same_sign(float a, float b)
 {
 	return (a > 0 && b > 0) || (a < 0 && b < 0) || (a == 0) && (b == 0);
+}
+
+Vector2f Object::getUnitVector(Vector2f v)
+{
+	float len = sqrtf(v.x*v.x + v.y*v.y);
+	v /= len;
+	return v;
 }
 
 Object::Object()
@@ -74,7 +84,23 @@ void Object::list_update()
 
 void Object::draw_all(RenderWindow &w)
 {
-	for (int i = 0; i < LAYERS; ++i) for (auto &p : render_buckets[i]) p->draw(w);
+	for (int i = 0; i < LAYERS; ++i) for (auto &p : render_buckets[i]) {
+		p->draw(w);
+		if (!p->inView() && p->getType() == Type_Asteroid) {
+			RectangleShape arrow;
+			arrow.setTexture(&Assets::arrow_yellow);
+			arrow.setSize({ 40, 20 });
+			arrow.setOrigin({ 20, 10 });
+			auto center = Plane::view.getCenter();
+			Vector2f v = getUnitVector(p->getPosition() - center);
+			float angle = acosf(v.x / sqrtf(v.x*v.x + v.y*v.y)) / (2.f*PI) * 360;
+			if (v.y > 0) arrow.setRotation(angle);
+			else if (v.y < 0) arrow.setRotation(-angle);
+			else if (v.x < 0) arrow.setRotation(180);
+			arrow.setPosition(center + 200.f*v);
+			w.draw(arrow);
+		}
+	}
 }
 
 int Object::getPositionBucket()
@@ -92,11 +118,55 @@ int Object::getPositionBucket()
 	return -1;
 }
 
+vector<int> Object::getNearbyBuckets(int bucket)
+{
+	switch (bucket) {
+	case 0: return vector<int> {0, 1, 3, 4};
+	case 1: return vector<int> {0, 1, 2, 3, 4, 5};
+	case 2: return vector<int> {1, 2, 4, 5};
+	case 3: return vector<int> {0, 1, 3, 4, 6, 7};
+	case 4: return vector<int> {0, 1, 2, 3, 4, 5, 6, 7, 8};
+	case 5: return vector<int> {1, 2, 4, 5, 7, 8};
+	case 6: return vector<int> {3, 4, 6, 7};
+	case 7: return vector<int> {3, 4, 5, 6, 7, 8};
+	case 8: return vector<int> {4, 5, 7, 8};
+	}
+	return vector<int>();
+}
+
+bool Object::inView()
+{
+	auto pos = getPosition();
+	auto center = Plane::view.getCenter();
+	return pos.x >= center.x - 400
+		&& pos.x <= center.x + 400
+		&& pos.y >= center.y - 300
+		&& pos.y <= center.y + 300;
+}
+
 Vector2f Plane::getFiringPosition()
 {
 	Vector2f firing_pos = shape.getPosition();
 	float angle = shape.getRotation() * PI / 180.f;
 	Vector2f dist = { 72 * cosf(angle), 72 * sinf(angle) };
+	firing_pos += dist;
+	return firing_pos;
+}
+
+Vector2f Plane::getFiringPosition2()
+{
+	Vector2f firing_pos = shape.getPosition();
+	float angle = shape.getRotation() * PI / 180.f;
+	Vector2f dist = { 15.f*cosf(angle) + 39.f * sinf(angle), 15.f * sinf(angle) - 39.f * cosf(angle) };
+	firing_pos += dist;
+	return firing_pos;
+}
+
+Vector2f Plane::getFiringPosition3()
+{
+	Vector2f firing_pos = shape.getPosition();
+	float angle = shape.getRotation() * PI / 180.f;
+	Vector2f dist = { 15.f*cosf(angle) - 39.f * sinf(angle), 15.f * sinf(angle) + 39.f * cosf(angle) };
 	firing_pos += dist;
 	return firing_pos;
 }
@@ -119,24 +189,19 @@ Plane::Plane(Vector2f pos)
 	shape.setTexture(&Assets::plane[0][0]);
 	shape.setRotation(270);
 	firing_sound.setBuffer(Assets::gunfire);
+	firing_sound2.setBuffer(Assets::misl_launch);
 	move_sound.setBuffer(Assets::plane_move);
 	jet_sound.setBuffer(Assets::jet_move);
-	rail_top.setSize({ 800, 28 });
-	rail_top.setOrigin({ 400, 14 });
-	rail_top.setTexture(&Assets::rail);
-	rail_left.setSize({ 600, 28 });
-	rail_left.setOrigin({ 300, 14 });
-	rail_left.setTexture(&Assets::rail);
+	shield.reset(new Animation(&Assets::shield[0], 5, { 130, 130 }, {}, nullptr, 1, 10));
 }
 
 void Plane::update()
 {
 	if (move_sound.getStatus() != Sound::Playing) move_sound.play();
+
 	// rotate
-	if (Keyboard::isKeyPressed(Keyboard::A) || Keyboard::isKeyPressed(Keyboard::Left))
-		shape.rotate(-PLANE_ROT);
-	if (Keyboard::isKeyPressed(Keyboard::D) || Keyboard::isKeyPressed(Keyboard::Right))
-		shape.rotate(PLANE_ROT);
+	if (Keyboard::isKeyPressed(Keyboard::A) || Keyboard::isKeyPressed(Keyboard::Left)) shape.rotate(-PLANE_ROT);
+	if (Keyboard::isKeyPressed(Keyboard::D) || Keyboard::isKeyPressed(Keyboard::Right)) shape.rotate(PLANE_ROT);
 	
 	// move
 	Vector2f pos = shape.getPosition();
@@ -167,12 +232,35 @@ void Plane::update()
 		float angle = (shape.getRotation() + rand() % 11 - 5)*PI / 180.f;
 		Vector2f bullet_v { BULLET_SPEED * cosf(angle), BULLET_SPEED * sinf(angle) };
 		Object::add(new Bullet(firing_pos, bullet_v, shape.getRotation()), BULLET_LAYER);
+		++can_fire_misl;
+		if (can_fire_misl == 10) {
+			shared_ptr<Object> target[2] {nullptr};
+			int idx = 0;
+			for (auto& i : Object::list) if (i->inView() && i->getType() == Type_Asteroid) {
+				target[idx] = i;
+				++idx;
+				if (idx == 2) break;
+			}
+			if (target[1] == nullptr) target[1] = target[0];
+			firing_sound2.play();
+			Object::add(new Missile(getFiringPosition2(), bullet_v, shape.getRotation(), target[0]), BULLET_LAYER);
+			Object::add(new Missile(getFiringPosition3(), bullet_v, shape.getRotation(), target[1]), BULLET_LAYER);
+			can_fire_misl = 0;
+		}
 	}
 	if (fire_muzzle != nullptr) {
 		if (fire_muzzle->isDead()) fire_muzzle.reset();
 		else {
 			fire_muzzle->setPosition(getFiringPosition());
 			fire_muzzle->play();
+		}
+	}
+
+	if (shield != nullptr) {
+		if (shield->isDead()) shield.reset();
+		else {
+			shield->play();
+			shield->setPosition(getPosition());
 		}
 	}
 
@@ -183,11 +271,6 @@ void Plane::update()
 	if (view_center.y < -300.f) view_center.y = -300.f;
 	if (view_center.y > 900.f) view_center.y = 900.f;
 	view.setCenter(view_center);
-
-	// collision detection
-	for (auto& i : pos_buckets[getPositionBucket()])
-		if (i->getType() == Type_Asteroid) // only collide with asteroids
-			if (length(getPosition(), i->getPosition()) <= radius + i->getRadius()) die();
 }
 
 void Plane::draw(RenderWindow &w)
@@ -199,57 +282,11 @@ void Plane::draw(RenderWindow &w)
 		if (cur_fr == 2) cur_fr = 0;
 		rate = 0;
 	}
-	Vector2f pos = view.getCenter();
-	// draw rails if near edges
-	if (pos.y < -250) {
-		rail_top.setRotation(0);
-		rail_top.setPosition({ pos.x, -564 });
-		w.draw(rail_top);
-	}
-	else if (pos.y > 850) {
-		rail_top.setRotation(180);
-		rail_top.setPosition({ pos.x, 1164 });
-		w.draw(rail_top);
-	}
-	if (pos.x < -350) {
-		rail_left.setRotation(270);
-		rail_left.setPosition({ -764, pos.y });
-		w.draw(rail_left);
-	}
-	else if (pos.x > 1150) {
-		rail_left.setRotation(90);
-		rail_left.setPosition({ 1564, pos.y });
-		w.draw(rail_left);
-	}
-	// draw nodes if near corners
-	if (pos.x < -300 && pos.y < -200) {
-		node.setPosition({ -752, -552 });
-		node.setRotation(0);
-		node.play();
-		node.draw(w);
-	} 
-	else if (pos.x < -300 && pos.y > 800) {
-		node.setPosition({ -752, 1152 });
-		node.setRotation(270);
-		node.play();
-		node.draw(w);
-	}
-	else if (pos.x > 1100 && pos.y < -200) {
-		node.setPosition({ 1552, -552 });
-		node.setRotation(90);
-		node.play();
-		node.draw(w);
-	}
-	else if (pos.x > 1100 && pos.y > 800) {
-		node.setPosition({ 1552, 1152 });
-		node.setRotation(180);
-		node.play();
-		node.draw(w);
-	}
 	// draw the plane
 	if (!dead) w.draw(shape);
 	// draw fire muzzle
 	if (fire_muzzle != nullptr) if (!fire_muzzle->isDead()) fire_muzzle->draw(w);
+	if (shield != nullptr) shield->draw(w);
 }
 
 void Plane::die()
@@ -260,6 +297,7 @@ void Plane::die()
 			new Animation(&Assets::explosion[0], 34, { 120, 134 }, getPosition(), &Assets::explosion_sound, 1, 3)));
 	dead = true;
 	player_is_dead = true;
+	--life;
 }
 
 Bullet::Bullet(Vector2f pos_s, Vector2f v, float rotation, int lifetime)
@@ -294,78 +332,222 @@ void Bullet::die()
 	dead = true;
 }
 
-Asteroid::Asteroid(int size, Vector2f pos, Vector2f v)
+Asteroid::Asteroid(int size, Vector2f pos)
 {
 	this->size = size;
-	Vector2f canvas_size;
+	float speed = float(3 - size);
 	switch (size) {
 	case SMALL: 
-		canvas_size = { 72, 76 }; 
-		radius = 36;
+		radius = 26;
+		v = { speed_mult * speed * cosf((rand() % 360) / 360.f * 2.f * PI), speed_mult * speed * sinf((rand() % 360) / 360.f * 2 * PI) };
+		image.reset(new Animation(&Assets::astr_tex[SMALL][0], 6, { 34, 52 }, pos, nullptr, -1));
 		break;
 	case MEDIUM: 
-		canvas_size = { 136, 120 }; 
 		radius = 60;
+		v = { speed_mult * speed * cosf((rand() % 360) / 360.f * 2.f * PI), speed_mult * speed * sinf((rand() % 360) / 360.f * 2 * PI) };
+		image.reset(new Animation(&Assets::astr_tex[MEDIUM][0], 12, { 136, 120 }, pos, nullptr, -1));
 		break;
-	case LARGE: 
-		canvas_size = { 236, 264 }; 
+	case LARGE:
 		radius = 118;
+		v = { speed_mult * speed * cosf((rand() % 360) / 360.f * 2.f * PI), speed_mult * speed * sinf((rand() % 360) / 360.f * 2 * PI) };
+		shape.setSize({ 186, 212 });
+		shape.setOrigin({ 93, 106 });
+		shape.setPosition(pos);
+		shape.setTexture(&Assets::astr_tex[LARGE][0]);
 		break;
 	}
-	image.reset(new Animation(&Assets::astr_tex[size][0], 10, canvas_size, pos, nullptr, -1, 5 * (size + 1)));
-	this->v = v;
 }
 
 void Asteroid::update()
 {
-	image->play();
-	Vector2f pos = image->getPosition();
+	if (size == SMALL || size == MEDIUM) {
+		image->play();
+		float angle = acosf(v.x / sqrtf(v.x*v.x + v.y*v.y)) / (2.f*PI) * 360;
+		if (v.y > 0) image->setRotation(angle);
+		if (v.y < 0) image->setRotation(-angle);
+	} else if (size == LARGE) shape.rotate(1);
+	Vector2f pos = getPosition();
 
 	// edge checking
-	if ((pos.x - radius <= -800 && v.x < 0) || (pos.x + radius >= 1600 && v.x > 0)) v.x = -v.x;
-	if ((pos.y - radius <= -600 && v.y < 0) || (pos.y + radius >= 1200 && v.y > 0)) v.y = -v.y;
+    // if ((pos.x - radius <= -800 && v.x < 0) || (pos.x + radius >= 1600 && v.x > 0)) v.x = -v.x;
+	// if ((pos.y - radius <= -600 && v.y < 0) || (pos.y + radius >= 1200 && v.y > 0)) v.y = -v.y;
+	if ((pos.x - radius <= -800 && v.x < 0)
+		|| (pos.x + radius >= 1600 && v.x > 0)
+		|| (pos.y - radius <= -300 && v.y < 0)
+		|| (pos.y + radius >= 1200 && v.y > 0))
+		v = speed_mult * float(3 - size) * getUnitVector(Plane::view.getCenter() - pos);
+	
 
 	// collision detection
-	for (auto& i : pos_buckets[getPositionBucket()]) {
-		Vector2f ipos = i->getPosition();
-		if (pos == ipos) continue; // self
-		if (length(pos, ipos) <= radius + i->getRadius()) { // collide
-			if (i->getType() != Type_Bullet) { // if not collide with bullet, bounce off
-				Vector2f diff = ipos - pos;
-				if (is_same_sign(diff.x, v.x)) v.x = -v.x;
-				if (is_same_sign(diff.y, v.y)) v.y = -v.y;
-			}
-			else { // if collide with bullet, both die
-				i->die();
-				die();
-				return;
+	auto nearby = getNearbyBuckets(getPositionBucket());
+	for (auto& b : nearby) {
+		for (auto& i : pos_buckets[b]) {
+			Vector2f ipos = i->getPosition();
+			if (pos == ipos) continue; // self
+			if (length(pos, ipos) <= radius + i->getRadius()) { // collide
+				if (i->getType() == Type_Asteroid) { // if not collide with an asteroid, bounce off
+					Vector2f diff = ipos - pos;
+					if (is_same_sign(diff.x, v.x)) v.x = -v.x;
+					if (is_same_sign(diff.y, v.y)) v.y = -v.y;
+				}
+				else { // if collide with bullet or plane, both die
+					if (!i->isShielded()) i->die();
+					die();
+					return;
+				}
 			}
 		}
 	}
 	pos += v;
-	image->setPosition(pos);
+	setPosition(pos);
 }
 
 void Asteroid::draw(RenderWindow &w)
 {
-	image->draw(w);
+	if (!dead)
+	{
+		if (size == SMALL || size == MEDIUM) image->draw(w);
+		else if (size == LARGE) w.draw(shape);
+	}
 }
 
 void Asteroid::die()
 {
 	score += 50;
+	--asteroid_count;
 	Effect::list.push_back(
 		shared_ptr<Effect>(
-			new Animation(&Assets::explosion[0], 34, { 120, 134 }, getPosition(), &Assets::explosion_sound, 1, 3)));
+			new Animation(&Assets::explosion[0], 34, { 2.f * radius, 2.f * radius * 134.f / 120.f }, getPosition(), 
+				&Assets::explosion_sound, 1, 3)));
 	if (size > 0) {
-		Vector2f v1 = v, v2 = v;
-		v1.x = -2 * v1.x;
-		v1.y = 2 * v1.y;
-		v2.x = 2 * v2.y;
-		v2.y = -2 * v2.y;
-		Object::add(new Asteroid(size - 1, getPosition() + v1, v1), ASTR_LAYER);
-		Object::add(new Asteroid(size - 1, getPosition() + v2, v2), ASTR_LAYER);
+		Object::add(new Asteroid(size - 1, getPosition() + Vector2f(0.5f * radius, -0.5f * radius)), ASTR_LAYER);
+		Object::add(new Asteroid(size - 1, getPosition() + Vector2f(-0.5f * radius, 0.5f * radius)), ASTR_LAYER);
 	}
 	dead = true;
 }
 
+Vector2f Asteroid::getPosition()
+{
+	if (size == LARGE) return shape.getPosition();
+	if (size == SMALL || size == MEDIUM) return image->getPosition();
+	return Vector2f();
+}
+
+void Asteroid::setPosition(Vector2f pos)
+{
+	if (size == LARGE) shape.setPosition(pos);
+	if (size == SMALL || size == MEDIUM) image->setPosition(pos);
+}
+
+RailNode::RailNode()
+{
+	rail_top.setSize({ 800, 28 });
+	rail_top.setOrigin({ 400, 14 });
+	rail_top.setTexture(&Assets::rail);
+	rail_left.setSize({ 600, 28 });
+	rail_left.setOrigin({ 300, 14 });
+	rail_left.setTexture(&Assets::rail);
+}
+
+void RailNode::update()
+{
+}
+
+void RailNode::draw(RenderWindow &w)
+{
+	Vector2f pos = Plane::view.getCenter();
+	// draw rails if near edges
+	if (pos.y < -250) {
+		rail_top.setRotation(0);
+		rail_top.setPosition({ pos.x, -564 });
+		w.draw(rail_top);
+	}
+	else if (pos.y > 850) {
+		rail_top.setRotation(180);
+		rail_top.setPosition({ pos.x, 1164 });
+		w.draw(rail_top);
+	}
+	if (pos.x < -350) {
+		rail_left.setRotation(270);
+		rail_left.setPosition({ -764, pos.y });
+		w.draw(rail_left);
+	}
+	else if (pos.x > 1150) {
+		rail_left.setRotation(90);
+		rail_left.setPosition({ 1564, pos.y });
+		w.draw(rail_left);
+	}
+	// draw nodes if near corners
+	if (pos.x < -300 && pos.y < -200) {
+		node.setPosition({ -752, -552 });
+		node.setRotation(0);
+		node.play();
+		node.draw(w);
+	}
+	else if (pos.x < -300 && pos.y > 800) {
+		node.setPosition({ -752, 1152 });
+		node.setRotation(270);
+		node.play();
+		node.draw(w);
+	}
+	else if (pos.x > 1100 && pos.y < -200) {
+		node.setPosition({ 1552, -552 });
+		node.setRotation(90);
+		node.play();
+		node.draw(w);
+	}
+	else if (pos.x > 1100 && pos.y > 800) {
+		node.setPosition({ 1552, 1152 });
+		node.setRotation(180);
+		node.play();
+		node.draw(w);
+	}
+}
+
+void RailNode::die()
+{
+	dead = true; // should be never used
+}
+
+Missile::Missile(Vector2f pos_s, Vector2f v, float rotation, shared_ptr<Object> target, int lifetime)
+{
+	this->v = MISSILE_SPEED * getUnitVector(v);
+	this->target = target;
+	radius = MISSILE_CR;
+	this->lifetime = lifetime;
+	lifetime_remain = lifetime;
+	shape.setSize({ 13, 10 });
+	shape.setOrigin({ 6.5f, 5.0f });
+	shape.setTexture(&Assets::missile);
+	shape.setPosition(pos_s);
+	shape.setRotation(rotation);
+}
+
+void Missile::update()
+{
+	--lifetime;
+	if (lifetime == 0) die();
+	else {
+		Vector2f pos = shape.getPosition();
+		Effect::list.push_back(shared_ptr<Effect> (new Animation(&Assets::trailer[0], 20, {12, 12}, getPosition(), nullptr, 1, 1)));
+		if (target != nullptr) {
+			if (target->isDead()) target.reset();
+			else v = MISSILE_SPEED * getUnitVector(v + 2.f * getUnitVector(target->getPosition() - pos));
+		}
+		float angle = acosf(v.x / sqrtf(v.x*v.x + v.y*v.y)) / (2.f*PI) * 360;
+		if (v.y > 0) shape.setRotation(angle);
+		if (v.y < 0) shape.setRotation(-angle);
+		shape.setPosition(pos + v);
+	}
+}
+
+void Missile::draw(RenderWindow &w)
+{
+	if (!dead) w.draw(shape);
+}
+
+void Missile::die()
+{
+	Effect::list.push_back(shared_ptr<Effect>(new Animation(&Assets::misl_exp[0], 13, { 42, 50 }, getPosition())));
+	dead = true;
+}
