@@ -15,6 +15,8 @@ class Assets
 public:
 	// here are all assets we need
 	static Texture menu_bg_tex;
+	static Texture loading_bg_tex;
+	static SoundBuffer typing;
 	static Font arcade;
 	static SoundBuffer menu_bgm;
 	static Texture bomb[16];
@@ -36,7 +38,7 @@ public:
 	static Texture piff[4];
 	static Texture plane_landing[20];
 	static SoundBuffer landing;
-	static Texture shield[5];
+	static Texture shield[9];
 	static Texture missile;
 	static Texture trailer[20];
 	static Texture misl_exp[13];
@@ -44,10 +46,31 @@ public:
 	static SoundBuffer misl_launch;
 	static Texture arrow_red;
 	static Texture arrow_yellow;
+	static Texture enemy[4];
+	static Texture electball[20];
+	static Texture blast[27];
+	static SoundBuffer laser;
+	static SoundBuffer gameover;
+	static SoundBuffer levelclear;
+	static SoundBuffer level_bgm;
+	static SoundBuffer winning_bgm;
+	static SoundBuffer losing_bgm;
+	static Texture powerup[20];
+	static SoundBuffer firefaster;
+	static SoundBuffer shieldup;
+	static SoundBuffer lifeplus;
 #define SMALL 0
 #define MEDIUM 1
 #define LARGE 2
 	static Texture astr_tex[3][12];
+	static Texture firepower[25];
+	static Texture heal[22];
+	static Texture armor[23];
+	static SoundBuffer bonus;
+	static Sound score_bonus;
+	static SoundBuffer firefastervoice;
+	static SoundBuffer shieldupvoice;
+	static SoundBuffer onemorelife;
 
 	// load all files needed
 	static void load();
@@ -76,7 +99,7 @@ public:
 class Animation : public Effect
 {
 	RectangleShape sprite;
-	Texture * texture;
+	Texture * texture {nullptr};
 	int cur_fr = 0;
 	int length;
 	Sound sound;

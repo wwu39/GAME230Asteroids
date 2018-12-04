@@ -4,6 +4,8 @@
 vector<shared_ptr<Effect>> Effect::list;
 
 Texture Assets::menu_bg_tex;
+Texture Assets::loading_bg_tex;
+SoundBuffer Assets::typing;
 Font Assets::arcade;
 SoundBuffer Assets::menu_bgm;
 Texture Assets::bomb[16];
@@ -26,7 +28,7 @@ Texture Assets::piff[4];
 Texture Assets::astr_tex[3][12];
 Texture Assets::plane_landing[20];
 SoundBuffer Assets::landing;
-Texture Assets::shield[5];
+Texture Assets::shield[9];
 Texture Assets::missile;
 Texture Assets::trailer[20];
 Texture Assets::misl_exp[13];
@@ -34,10 +36,33 @@ SoundBuffer Assets::misl_exp_sound;
 SoundBuffer Assets::misl_launch;
 Texture Assets::arrow_red;
 Texture Assets::arrow_yellow;
+Texture Assets::enemy[4];
+Texture Assets::electball[20];
+Texture Assets::blast[27];
+SoundBuffer Assets::laser;
+SoundBuffer Assets::gameover;
+SoundBuffer Assets::levelclear;
+SoundBuffer Assets::level_bgm;
+SoundBuffer Assets::winning_bgm;
+SoundBuffer Assets::losing_bgm;
+Texture Assets::powerup[20];
+SoundBuffer Assets::firefaster;
+SoundBuffer Assets::shieldup;
+SoundBuffer Assets::lifeplus;
+Texture Assets::firepower[25];
+Texture Assets::heal[22];
+Texture Assets::armor[23];
+SoundBuffer Assets::bonus;
+Sound Assets::score_bonus;
+SoundBuffer Assets::firefastervoice;
+SoundBuffer Assets::shieldupvoice;
+SoundBuffer Assets::onemorelife;
 
 void Assets::load()
 {
 	menu_bg_tex.loadFromFile("sprites/menu.png");
+	loading_bg_tex.loadFromFile("sprites/loading.png");
+	typing.loadFromFile("sound/typing.wav");
 	arcade.loadFromFile("fonts/arcade.ttf");
 	menu_bgm.loadFromFile("sound/menu_bg.wav");
 	for (int i = 0; i < 16; ++i) {
@@ -99,7 +124,12 @@ void Assets::load()
 	landing.loadFromFile("sound/landing.wav");
 	for (int i = 0; i < 5; ++i) {
 		ostringstream filename;
-		filename << "sprites/shield_white 000" << i << ".png";
+		filename << "sprites/shield_white 000" << 4 - i << ".png";
+		shield[i].loadFromFile(filename.str());
+	}
+	for (int i = 5; i < 9; ++i) {
+		ostringstream filename;
+		filename << "sprites/shield_white 000" << i - 4 << ".png";
 		shield[i].loadFromFile(filename.str());
 	}
 	missile.loadFromFile("sprites/misl.png");
@@ -117,6 +147,55 @@ void Assets::load()
 	misl_launch.loadFromFile("sound/misl_launch.wav");
 	arrow_red.loadFromFile("sprites/arrow.png");
 	arrow_yellow.loadFromFile("sprites/arrow2.png");
+	for (int i = 0; i < 4; ++i) {
+		ostringstream filename;
+		filename << "sprites/enemy 000" << i << ".png";
+		enemy[i].loadFromFile(filename.str());
+	}
+	for (int i = 0; i < 20; ++i) {
+		ostringstream filename;
+		filename << "sprites/a 00" << (i > 9 ? "" : "0") << i << ".png";
+		electball[i].loadFromFile(filename.str());
+	}
+	for (int i = 0; i < 27; ++i) {
+		ostringstream filename;
+		filename << "sprites/blast 00" << (i > 9 ? "" : "0") << i << ".png";
+		blast[i].loadFromFile(filename.str());
+	}
+	laser.loadFromFile("sound/aaa.wav");
+	gameover.loadFromFile("sound/gameover.wav");
+	levelclear.loadFromFile("sound/levelclear.wav");
+	level_bgm.loadFromFile("sound/b05.wav");
+	winning_bgm.loadFromFile("sound/win_level.wav");
+	losing_bgm .loadFromFile("sound/losing_bg.wav");
+	for (int i = 0; i < 20; ++i) {
+		ostringstream filename;
+		filename << "sprites/powerup 00" << (i > 9 ? "" : "0") << i << ".png";
+		powerup[i].loadFromFile(filename.str());
+	}
+	firefaster.loadFromFile("sound/firefaster.wav");
+	shieldup.loadFromFile("sound/shieldup.wav");
+	lifeplus.loadFromFile("sound/life+1.wav");
+	for (int i = 0; i < 25; ++i) {
+		ostringstream filename;
+		filename << "sprites/firepower 00" << (i > 9 ? "" : "0") << i << ".png";
+		firepower[i].loadFromFile(filename.str());
+	}
+	for (int i = 0; i < 25; ++i) {
+		ostringstream filename;
+		filename << "sprites/heal 00" << (i > 9 ? "" : "0") << i << ".png";
+		heal[i].loadFromFile(filename.str());
+	}
+	for (int i = 0; i < 23; ++i) {
+		ostringstream filename;
+		filename << "sprites/armor 00" << (i > 9 ? "" : "0") << i << ".png";
+		armor[i].loadFromFile(filename.str());
+	}
+	bonus.loadFromFile("sound/bonus.wav");
+	score_bonus.setBuffer(bonus);
+	firefastervoice.loadFromFile("sound/firefastervoice.wav");
+	shieldupvoice.loadFromFile("sound/shieldupvoice.wav");
+	onemorelife.loadFromFile("sound/onemorelife.wav");
 }
 
 
@@ -145,10 +224,12 @@ Animation::Animation(Texture * texture, int length, Vector2f size, Vector2f pos,
 	sprite.setSize(size);
 	sprite.setPosition(pos);
 	sprite.setOrigin(size / 2.0f);
-	sprite.setTexture(texture);
+	if (texture != nullptr) {
+		sprite.setTexture(texture);
+		this->texture = texture;
+	} else sprite.setFillColor(Color(168, 220, 255));
 	if (sb) sound.setBuffer(*sb);
 	sound.play();
-	this->texture = texture;
 	this->rate = rate;
 	RATE = rate;
 	this->loop_count = loop_count;
@@ -159,7 +240,7 @@ void Animation::play()
 {
 	++rate;
 	if (rate / RATE) {
-		sprite.setTexture(&texture[cur_fr]);
+		if (texture != nullptr) sprite.setTexture(&texture[cur_fr]);
 		++cur_fr;
 		if (cur_fr == length) {
 			cur_fr = 0;

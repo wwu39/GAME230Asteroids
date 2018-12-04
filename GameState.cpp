@@ -47,7 +47,7 @@ GameStatus Menu::update()
 		if (Keyboard::isKeyPressed(Keyboard::Space) || Keyboard::isKeyPressed(Keyboard::Enter)) {
 			if (pos.x == 90.0f) {
 				Assets::button_press.play();
-				return GAME;
+				return LOADING;
 			}
 			if (pos.x == 450.0f) return EXIT;
 		}
@@ -102,6 +102,11 @@ Asteroids::Asteroids(int level)
 	gameover_text.setString("GAME OVER");
 
 	landing_sound.setBuffer(Assets::landing);
+	gameover_voice.setBuffer(Assets::gameover);
+	levelclear_voice.setBuffer(Assets::levelclear);
+	winning_bgm.setBuffer(Assets::winning_bgm);
+	losing_bgm.setBuffer(Assets::losing_bgm);
+	level_bgm.setBuffer(Assets::level_bgm);
 
 	Plane::view.setCenter({ 400, 300 });
 	Object::player_is_dead = false;
@@ -113,22 +118,39 @@ Asteroids::Asteroids(int level)
 
 	if (level == 1) {
 		Plane::life = 3;
+		Plane::rof = 5;
 		Object::score = 0;
 	}
-	Asteroid::speed_mult = float(level);
+	Asteroid::speed_mult = 0.5f + 0.5f*float(level);
 	Object::asteroid_count = 44;
-	Object::add(new Asteroid(LARGE, { -400, -300 }), ASTR_LAYER);
+	Object::add(new Asteroid(MEDIUM, { -400, -300 }), ASTR_LAYER);
 	Object::add(new Asteroid(SMALL, { -400, 300 }), ASTR_LAYER);
-	Object::add(new Asteroid(LARGE, { -400, 900 }), ASTR_LAYER);
+	Object::add(new Asteroid(MEDIUM, { -400, 900 }), ASTR_LAYER);
 	Object::add(new Asteroid(SMALL, { 400, -300 }), ASTR_LAYER);
-	Object::add(new Asteroid(SMALL, { 400, 900 }), ASTR_LAYER);
+	Object::add(new Asteroid(LARGE, { 400, 900 }), ASTR_LAYER);
 	Object::add(new Asteroid(LARGE, { 1200, -300 }), ASTR_LAYER);
 	Object::add(new Asteroid(SMALL, { 1200, 300 }), ASTR_LAYER);
 	Object::add(new Asteroid(LARGE, { 1200, 900 }), ASTR_LAYER);
 	Object::add(new Asteroid(MEDIUM, { 0, 0 }), ASTR_LAYER);
-	Object::add(new Asteroid(MEDIUM, { 800, 0 }), ASTR_LAYER);
+	Object::add(new Asteroid(LARGE, { 800, 0 }), ASTR_LAYER);
 	Object::add(new Asteroid(MEDIUM, { 0, 600 }), ASTR_LAYER);
-	Object::add(new Asteroid(MEDIUM, { 800, 600 }), ASTR_LAYER);
+	Object::add(new Asteroid(SMALL, { 800, 600 }), ASTR_LAYER);
+	if (level % 3 == 2) {
+		Object::add(new Asteroid(MEDIUM, { -200, -150 }), ASTR_LAYER);
+		Object::add(new Asteroid(MEDIUM, { 200, 150 }), ASTR_LAYER);
+		Object::asteroid_count = 50;
+	}
+	if (level % 3 == 0) {
+		Object::add(new Asteroid(MEDIUM, { 600, 450 }), ASTR_LAYER);
+		Object::add(new Asteroid(MEDIUM, { -600, 450 }), ASTR_LAYER);
+		Object::add(new Asteroid(SMALL, { -600, -450 }), ASTR_LAYER);
+		Object::add(new Asteroid(LARGE, { -600, 450 }), ASTR_LAYER);
+		Object::add(new Asteroid(SMALL, { -200, -150 }), ASTR_LAYER);
+		Object::add(new Asteroid(SMALL, { -200, 150 }), ASTR_LAYER);
+		Object::add(new Asteroid(SMALL, { 200, 150 }), ASTR_LAYER);
+		Object::add(new Asteroid(LARGE, { 200, -150 }), ASTR_LAYER);
+		Object::asteroid_count = 68;
+	}
 }
 
 Asteroids::~Asteroids()
@@ -137,10 +159,18 @@ Asteroids::~Asteroids()
 
 GameStatus Asteroids::update()
 {
+	// sky color
+	if (c_reverse) --c; else ++c;
+	if (c == 255) c_reverse = true;
+	if (c == 150) c_reverse = false;
+	bg.setFillColor(Color(c, c, c));
+
 	for (auto i = Effect::list.size() - 1; i != -1; --i) { // play all effects
 		if (Effect::list[i]->isDead()) Effect::list.erase(Effect::list.begin() + i);
 		else Effect::list[i]->play();
 	}
+	if (status == STARTING || status == RUNNING)
+		if (level_bgm.getStatus() != Sound::Playing) level_bgm.play();
 	if (status == STARTING) {
 		if (level_title != nullptr) {
 			if (level_title->isDead()) {
@@ -156,16 +186,21 @@ GameStatus Asteroids::update()
 			Assets::button_press.play();
 			return MENU;
 		}
-		if (Object::asteroid_count == 0) {
-			Effect::list.push_back(shared_ptr<Effect>(
-				new FlashingText("Press Enter to Continue...", Plane::view.getCenter() + Vector2f(-300, 150), 50, -1)));
-			status = ENDING;
-		}
-		if (Plane::life == 0) {
+		if (Plane::life <= 0) {
 			gameover_text.setPosition(Plane::view.getCenter() + Vector2f(-20, -50));
 			Effect::list.push_back(shared_ptr<Effect>(
 				new FlashingText("Press Enter to Continue...", Plane::view.getCenter() + Vector2f(-300, 150), 50, -1)));
+			gameover_voice.play();
+			if (level_bgm.getStatus() == Sound::Playing) level_bgm.stop();
 			status = GAMEOVER;
+		}
+		if (Object::asteroid_count == 0) {
+			Effect::list.push_back(shared_ptr<Effect>(
+				new FlashingText("Press Enter to Continue...", Plane::view.getCenter() + Vector2f(-300, 150), 50, -1)));
+			levelclear_voice.play();
+			if (level_bgm.getStatus() == Sound::Playing) level_bgm.stop();
+			winning_bgm.play();
+			status = ENDING;
 		}
 		if (Object::player_is_dead) {
 			redeploy.reset(new FlashingText("Re-Deploying", Plane::view.getCenter() + Vector2f(-260, -80), 100));
@@ -208,12 +243,21 @@ GameStatus Asteroids::update()
 		score_text_content << "Score:" << Object::score;
 		socre_text.setString(score_text_content.str());
 		socre_text.setPosition(score_pos);
+
+		++AlienshipInterval;
+		if (AlienshipInterval == 600) {
+			Object::add(new AlienShip(AlienshipLocs[AlienshipLocIdx]), ELECT_LAYER);
+			AlienshipLocIdx = (AlienshipLocIdx + 1) % 4;
+			AlienshipInterval = 0;
+		}
+
 	}
 	else if (status == ENDING) {
 		if (Keyboard::isKeyPressed(Keyboard::Enter))
 			return NEXT_LEVEL;
 	}
 	else if (status == GAMEOVER) {
+		if (losing_bgm.getStatus() != Sound::Playing) losing_bgm.play();
 		if (Keyboard::isKeyPressed(Keyboard::Enter)) 
 			return MENU;
 	}
@@ -247,4 +291,53 @@ void Asteroids::draw_life_image(RenderWindow &w)
 		life_image.setPosition(center + Vector2f(float(375 - 50 * i), 275));
 		w.draw(life_image);
 	}
+}
+
+Loading::Loading()
+{
+	prompt.reset(new FlashingText("Press Space to Continue...", { 100, 450 }, 50, -1));
+	bg.setSize({ 800, 600 });
+	bg.setTexture(&Assets::loading_bg_tex);
+	ostringstream str;
+	str << "Alien armada covers the sky..." << endl
+		<< "Destroy all yellow targets to " << endl << "secure the area." << endl
+		<< "Good luck!" << endl;
+	context_content = str.str();
+	context.setCharacterSize(50);
+	context.setFont(Assets::arcade);
+	context.setFillColor(Color::Green);
+	context.setPosition({ 50, 40 });
+	typing.setBuffer(Assets::typing);
+}
+
+Loading::~Loading()
+{
+}
+
+GameStatus Loading::update()
+{
+
+	if (i < int(context_content.getSize()) - 1) {
+		if (j == 4) {
+			++i;
+			j = 0;
+		} else ++j;
+		if (typing.getStatus() != Sound::Playing) typing.play();
+	}
+	context.setString(context_content.substring(0, i));
+	prompt->play();
+	if (stun == 10) {
+		if (Keyboard::isKeyPressed(Keyboard::Space)) return GAME;
+	}
+	else ++stun;
+	return NO_CHANGE;
+}
+
+void Loading::draw(RenderWindow &w)
+{
+	w.clear(Color(0, 0, 255));
+	w.draw(bg);
+	w.draw(context);
+	prompt->draw(w);
+	w.display();
 }

@@ -1,6 +1,6 @@
 #include "GameState.h"
 
-#define GAMETILE "RailDefender 3: Asteroids"
+#define GAMETILE "RailDefender 3"
 
 const Time dt = milliseconds(16); // approx 60 fps
 
@@ -27,6 +27,9 @@ int main()
 				level = 1;
 				window.setView(window.getDefaultView());
 				game.reset(new Menu()); 
+				break;
+			case LOADING:
+				game.reset(new Loading());
 				break;
 			case GAME: 
 				game.reset(new Asteroids(level));
